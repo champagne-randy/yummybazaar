@@ -6,6 +6,12 @@ import {
 
 
 
+// TODO:
+// - look into Redux
+// - can I use it to implement a more robust local storage?
+// - see: http://onehungrymind.com/build-better-angular-2-application-redux-ngrx/
+// - see: http://dev.apollodata.com/angular2/redux.html
+// - http://redux.js.org/
 @Injectable()
 export class StorageService {
 
