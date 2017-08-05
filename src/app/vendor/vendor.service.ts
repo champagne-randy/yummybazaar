@@ -34,9 +34,6 @@ import {
 	LoggerService,
 	startsWithAlpha	
 }							from '../utils';
-import { 
-	Product 
-}							from '../product';
 
 
 

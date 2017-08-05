@@ -14,12 +14,8 @@ import {
 }  							from '../api/queries';
 import { 
 	LoggerService,
-	startsWithAlpha,
 	StorageService	
 }							from '../utils';
-import { 
-	Product 
-}							from '../product';
 import {
 	VendorService
 }							from './vendor.service';
