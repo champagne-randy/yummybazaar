@@ -79,12 +79,28 @@ export class VendorService implements OnInit, OnDestroy {
 
 
 	ngOnInit(): void {
+
+		// Debug
+		this.logger.log('Starting VendorService.ngOnInit()');
+		
+		// run initialization logic
 		this.init();
+
+		// Debug
+		this.logger.log('Completed VendorService.ngOnInit()');
 	}
 
 
 	ngOnDestroy(): void {
+
+		// Debug
+		this.logger.log('Starting VendorService.ngOnDestroy()');
+		
+		// run destruction logic
 		this.destroy();
+
+		// Debug
+		this.logger.log('Completed VendorService.ngOnDestroy()');
 	}
 
 
@@ -122,7 +138,7 @@ export class VendorService implements OnInit, OnDestroy {
 			({data, loading}) => {
 
 				// Debug
-				this.logger.log('Starting to consume payload from API in VendorService.init()');
+				this.logger.log('Starting to consume collections payload');
 
 
 				// TODO:
@@ -140,7 +156,7 @@ export class VendorService implements OnInit, OnDestroy {
 
 				// select vendors with first key
 				if (this.vendorKeys.length > 0) {
-					this.selectedVendors = this.fetchVendorsByKey(this.vendorKeys[0]);
+					this.setSelectedVendor(this.vendorKeys[0]);
 				}
 
 
@@ -150,7 +166,7 @@ export class VendorService implements OnInit, OnDestroy {
 
 
 				// Debug
-				this.logger.log('Finished consuming payload from API in VendorService.init()');
+				this.logger.log('Finished consuming collections payload');
 			},
 			(err) => { 
 				this.logger.error('Fetch error: ' + err.message); 
@@ -233,6 +249,16 @@ export class VendorService implements OnInit, OnDestroy {
 
 		// mark VendorService as destroyed
 		this.completedDestroy = true;
+	}
+
+
+
+	// TODO:
+	// - impl this
+	// - test this manually
+	// - impl unit tests
+	setSelectedVendor(key: string): void {
+		this.selectedVendors = this.vendorsCache[key];
 	}
 
 
@@ -336,16 +362,6 @@ export class VendorService implements OnInit, OnDestroy {
 		this.logger.log('Completed VendorService.processNewVendors()');
 
 		return newVendorCache;
-	}
-
-
-
-	// TODO:
-	// x impl this
-	// x test this manually
-	// - impl unit tests
-	fetchVendorsByKey(key: string): Set<any> {
-		return this.vendorsCache[key];
 	}
 
 

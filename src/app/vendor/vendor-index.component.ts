@@ -43,6 +43,7 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 	
 	constructor(
+		private logger: 	LoggerService,
 		private service: 	VendorService,
 		private storage:	StorageService
 	) {
@@ -54,6 +55,9 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 
 	ngOnInit(): void {
+
+		// Debug
+		this.logger.log('Starting VendorIndexComponent.ngOnInit()');
 
 		// init VendorService provider
 		if (!this.service.completedInit)
@@ -74,11 +78,17 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 				this.storage.save('selectedVendors',this.selectedVendors);
 			}
 		);
+
+		// Debug
+		this.logger.log('Completed VendorIndexComponent.ngOnInit()');
 	};
 
 
 
 	ngOnDestroy(): void {
+
+		// Debug
+		this.logger.log('Starting VendorIndexComponent.ngOnDestroy()');
 
 		// cancel subscriptions
 		this.vendorKeysSub.unsubscribe();
@@ -87,12 +97,24 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		// destroy service if necessary
 		if(!this.service.completedDestroy)
 			this.service.destroy();
+
+		// Debug
+		this.logger.log('Completed VendorIndexComponent.ngOnDestroy()');
 	}
 
 
 
-	fetchVendorsByKey(key: string): Set<any> {
-		return this.service.fetchVendorsByKey(key);
+	selectVendor(key: string): void {
+
+		// Debug
+		this.logger.log('Starting VendorIndexComponent.selectVendor()');
+
+		// use VendorService to change vendor selection
+		this.service.setSelectedVendor(key);
+
+		// Debug
+		this.logger.log(`selected vendors with key: ${JSON.stringify(key,null,4)}`);
+		this.logger.log('Completed VendorIndexComponent.selectVendor()');
 	}
 
 
