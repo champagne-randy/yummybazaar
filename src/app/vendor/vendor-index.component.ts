@@ -14,11 +14,8 @@ import {
 }  							from '../api/queries';
 import { 
 	LoggerService,
-	startsWithAlpha	
+	StorageService	
 }							from '../utils';
-import { 
-	Product 
-}							from '../product';
 import {
 	VendorService
 }							from './vendor.service';
@@ -37,7 +34,6 @@ import {
 export class VendorIndexComponent implements OnInit, OnDestroy {
 	
 
-	
 	vendorKeys:					Observable<string[]>;
 	private vendorKeysSub:		Subscription;
 	selectedVendors:			Observable<Set<any>>;
@@ -47,12 +43,21 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 	
 	constructor(
-		private service: 	VendorService
-	) {}; 
+		private logger: 	LoggerService,
+		private service: 	VendorService,
+		private storage:	StorageService
+	) {
+		// fetch properties from local storage if exists
+		this.vendorKeys 	 = this.storage.get('vendorKeys');
+		this.selectedVendors = this.storage.get('selectedVendors');
+	}; 
 
 
 
 	ngOnInit(): void {
+
+		// Debug
+		this.logger.log('Starting VendorIndexComponent.ngOnInit()');
 
 		// init VendorService provider
 		if (!this.service.completedInit)
@@ -60,18 +65,30 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 		// subscribe to vendorKeysStream
 		this.vendorKeysSub = this.service.vendorKeysStream.subscribe(
-			(data) => this.vendorKeys = data
+			(data) => {
+				this.vendorKeys = data;
+				this.storage.save('vendorKeys',this.vendorKeys);
+			}
 		);
 
 		// subscribe to selectedVendorsStream
 		this.selectedVendorsSub = this.service.selectedVendorsStream.subscribe(
-			(data) => this.selectedVendors = data
+			(data) => {
+				this.selectedVendors = data;
+				this.storage.save('selectedVendors',this.selectedVendors);
+			}
 		);
+
+		// Debug
+		this.logger.log('Completed VendorIndexComponent.ngOnInit()');
 	};
 
 
 
 	ngOnDestroy(): void {
+
+		// Debug
+		this.logger.log('Starting VendorIndexComponent.ngOnDestroy()');
 
 		// cancel subscriptions
 		this.vendorKeysSub.unsubscribe();
@@ -80,11 +97,24 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		// destroy service if necessary
 		if(!this.service.completedDestroy)
 			this.service.destroy();
+
+		// Debug
+		this.logger.log('Completed VendorIndexComponent.ngOnDestroy()');
 	}
 
 
-	fetchVendorsByKey(key: string): Set<any> {
-		return this.service.fetchVendorsByKey(key);
+
+	selectVendor(key: string): void {
+
+		// Debug
+		this.logger.log('Starting VendorIndexComponent.selectVendor()');
+		this.logger.log(`selecting vendors with key: ${JSON.stringify(key,null,4)}`);
+
+		// use VendorService to change vendor selection
+		this.service.setSelectedVendor(key);
+
+		// Debug
+		this.logger.log('Completed VendorIndexComponent.selectVendor()');
 	}
 
 

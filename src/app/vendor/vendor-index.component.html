@@ -8,11 +8,15 @@
 
 	<!-- selection widget -->
 		<ul>
-			<li
+			<button
 				*ngFor="let key of vendorKeys"
+				(click)="selectVendor(key)"
+				[attr.key]=key
 			>
-				{{ key }}
-			</li>
+				<li>
+					{{ key }}
+				</li>
+			</button>
 		</ul>
 	<!-- selection widget -->
 
