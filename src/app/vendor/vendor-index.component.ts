@@ -108,12 +108,12 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 		// Debug
 		this.logger.log('Starting VendorIndexComponent.selectVendor()');
+		this.logger.log(`selecting vendors with key: ${JSON.stringify(key,null,4)}`);
 
 		// use VendorService to change vendor selection
 		this.service.setSelectedVendor(key);
 
 		// Debug
-		this.logger.log(`selected vendors with key: ${JSON.stringify(key,null,4)}`);
 		this.logger.log('Completed VendorIndexComponent.selectVendor()');
 	}
 
