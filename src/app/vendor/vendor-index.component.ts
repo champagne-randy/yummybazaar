@@ -14,7 +14,8 @@ import {
 }  							from '../api/queries';
 import { 
 	LoggerService,
-	startsWithAlpha	
+	startsWithAlpha,
+	StorageService	
 }							from '../utils';
 import { 
 	Product 
@@ -37,7 +38,6 @@ import {
 export class VendorIndexComponent implements OnInit, OnDestroy {
 	
 
-	
 	vendorKeys:					Observable<string[]>;
 	private vendorKeysSub:		Subscription;
 	selectedVendors:			Observable<Set<any>>;
@@ -47,8 +47,13 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 	
 	constructor(
-		private service: 	VendorService
-	) {}; 
+		private service: 	VendorService,
+		private storage:	StorageService
+	) {
+		// fetch properties from local storage if exists
+		this.vendorKeys 	 = this.storage.get('vendorKeys');
+		this.selectedVendors = this.storage.get('selectedVendors');
+	}; 
 
 
 
@@ -60,12 +65,18 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 		// subscribe to vendorKeysStream
 		this.vendorKeysSub = this.service.vendorKeysStream.subscribe(
-			(data) => this.vendorKeys = data
+			(data) => {
+				this.vendorKeys = data;
+				this.storage.save('vendorKeys',this.vendorKeys);
+			}
 		);
 
 		// subscribe to selectedVendorsStream
 		this.selectedVendorsSub = this.service.selectedVendorsStream.subscribe(
-			(data) => this.selectedVendors = data
+			(data) => {
+				this.selectedVendors = data;
+				this.storage.save('selectedVendors',this.selectedVendors);
+			}
 		);
 	};
 
@@ -81,6 +92,7 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		if(!this.service.completedDestroy)
 			this.service.destroy();
 	}
+
 
 
 	fetchVendorsByKey(key: string): Set<any> {

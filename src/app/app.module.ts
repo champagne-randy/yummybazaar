@@ -28,7 +28,8 @@ import {
 
 // Services
 import { 
-	LoggerService 
+	LoggerService,
+	StorageService 
 }							from './utils';
 import {
 	VendorService
@@ -66,6 +67,7 @@ export function provideClient(): ApolloClient {
 	],
 	providers:    [ 
 		LoggerService,
+		StorageService,
 		VendorService,
 	],
 	declarations: [ 
