@@ -28,6 +28,7 @@ import {
 
 // Project Services
 import {
+	GraphQLService,
 	provideClient
 }							from './api';
 import { 
@@ -49,6 +50,7 @@ import {
 		BrowserModule,
 	],
 	providers:    [ 
+		GraphQLService,
 		LoggerService,
 		StorageService,
 		VendorService,
