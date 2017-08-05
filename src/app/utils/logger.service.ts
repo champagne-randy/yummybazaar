@@ -14,19 +14,19 @@ export class LoggerService {
 
 	
 	log(msg: any)   { 
-		if (isDevMode)
+		if (isDevMode())
 			console.log(addTimeCode(msg)); 
 	}
 
 
 	error(msg: any) { 
-		if (isDevMode)
+		if (isDevMode())
 			console.error(addTimeCode(msg)); 
 	}
 
 
 	warn(msg: any)  { 
-		if (isDevMode)
+		if (isDevMode())
 			console.warn(addTimeCode(msg)); 
 	}
 }
