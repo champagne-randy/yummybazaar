@@ -28,4 +28,39 @@ query Collections($after: String) {
     }
   }
 }
-`
+`;
+
+
+export const NewCollectionsQuery = gql`
+query Collections(
+		$offset: String
+		$limit: String
+  ) {
+  shop {
+    collections (
+      first: $limit
+      after: $offset
+    ) {
+      edges {
+        node {
+          id
+          handle
+          descriptionHtml
+          image {
+            id
+            src
+            altText
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasPreviousPage
+        hasNextPage
+      }
+    }
+  }
+}
+`;
+
+

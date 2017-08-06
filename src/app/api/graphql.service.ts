@@ -17,6 +17,7 @@ import {
 	CollectionsQuery
 }  							from '../api/queries';
 import { 
+	deepFindObjectProp,
 	LoggerService,
 	startsWithAlpha	
 }							from '../utils';
@@ -43,23 +44,15 @@ import {
 @Injectable()
 export class GraphQLService implements OnInit, OnDestroy {
 
-	completedInit:				boolean;
-	completedDestroy:			boolean;
+	private serviceInitiated:	boolean;
+	private serviceDestroyed:	boolean;
 	private loading: 	  		boolean;
-	private vendorsCache: 	  	Object;
-	vendorsCacheStream: 		Observable<any>;
-	vendorsCacheSub: 			Subscription;
-	private vendorKeys:	  		string[];
-	vendorKeysStream: 			Observable<any>;
-	vendorKeysSub: 				Subscription;
-	private selectedVendors:	Set<any>;
-	selectedVendorsStream: 		Observable<any>;
-	selectedVendorsSub: 		Subscription;
-	private collectionStream: 	ApolloQueryObservable<any>;
-	private collectionSub:		Subscription;
-	private fetchMoreStream: 	Observable<boolean>;
+	loadingStream:				Observable<boolean>;
+	dataStream: 				ApolloQueryObservable<any>;
+	private dataSub:			Subscription;
+	private fetchMoreTrigger: 	Observable<boolean>;
 	private fetchMoreSub: 		Subscription;
-	private hasNextPage: 	 	boolean;
+	private fetchMoreFlag: 	 	boolean;
 	private cursor: 		 	string;
 	
 
@@ -69,12 +62,11 @@ export class GraphQLService implements OnInit, OnDestroy {
 		private logger: LoggerService
 	) { 
 
-		// init GraphQLService states
-		this.completedInit 		= false;
-		this.completedDestroy 	= false;
+		// initial states for GraphQLService
+		this.serviceInitiated 	= false;
+		this.serviceDestroyed 	= false;
 		this.loading 	 		= true;
-		this.vendorsCache 		= {};
-		this.hasNextPage 		= false;
+		this.fetchMoreFlag 		= false;
 		this.cursor 	 		= null;
 	};
 
@@ -85,8 +77,10 @@ export class GraphQLService implements OnInit, OnDestroy {
 		// Debug
 		this.logger.log('Starting GraphQLService.ngOnInit()');
 		
+
 		// run initialization logic
 		this.init();
+
 
 		// Debug
 		this.logger.log('Completed GraphQLService.ngOnInit()');
@@ -107,15 +101,22 @@ export class GraphQLService implements OnInit, OnDestroy {
 
 
 
-	// init GraphQLService
+	// run new query against GraphQL API
 	// ToDo:
 	// x impl this
-	// x test this manually
+	// - test this manually
 	// - impl unit tests
-	init(): void {
+	fetch(
+			query: any, 
+			offset: string,
+			limit: number,
+			path2FetchMoreFlag: string,		// data.shop.collections.pageInfo.hasNextPage;
+			path2Object: string				// data.shop.collections.edges.slice(-1)[0].cursor;
+	): void {
 
-		// only initialized GraphQLService once
-		if(this.completedInit)
+
+		// don't fetch unless GraphQLService is initialized 
+		if(!this.serviceInitiated)
 			return;
 
 
@@ -124,115 +125,48 @@ export class GraphQLService implements OnInit, OnDestroy {
 
 
 		// initialize collection stream
-		this.collectionStream = this.client
+		this.dataStream = this.client
 			.watchQuery<any>(
 				{
-					query: CollectionsQuery,
+					query: query,
 					variables: {
-						after: this.cursor
+						offset: offset,
+						limit: limit
 					}
 				}
 			)
 		;
 
 
-		// parse vendors from collection stream
-		this.collectionSub = this.collectionStream.subscribe(
+		// TODO
+		// - impl a stream that watches this.dataStream.complete
+		// - it should update this.loading = !this.dataStream.complete
+
+
+
+		// subscribe this.fetchMoreFlag & this.cursor to dataStream
+		this.dataSub = this.dataStream.subscribe(
 			({data, loading}) => {
 
 				// Debug
-				this.logger.log('Starting to consume collections payload');
+				this.logger.log('Starting to consume payload from API');
 
 
-				// TODO:
-				// - how should I use this loading property?
-				this.loading = loading;
+				// - set fetchMoreFlag 
+				this.fetchMoreFlag = deepFindObjectProp(data, path2FetchMoreFlag);
 
 
-				// populate vendor cache
-				this.vendorsCache = this.processNewVendors(data.shop.collections.edges);
-
-
-				// generate vendor keys array
-				this.vendorKeys = Object.keys(this.vendorsCache).sort();
-
-
-				// select vendors with first key
-				if (this.vendorKeys.length > 0) {
-					this.setSelectedVendor(this.vendorKeys[0]);
-				}
-
-
-				// config pagination properties
-				this.hasNextPage = data.shop.collections.pageInfo.hasNextPage;
-				this.cursor = data.shop.collections.edges.slice(-1)[0].cursor;
+				// - set cursor
+				this.cursor = deepFindObjectProp(data, path2Object).slice(-1)[0].cursor;
 
 
 				// Debug
-				this.logger.log('Finished consuming collections payload');
+				this.logger.log('Finished consuming payload from API');
 			},
 			(err) => { 
 				this.logger.error('Fetch error: ' + err.message); 
 			}
 		);	
-
-
-
-		// init vendorsCacheStream
-		this.vendorsCacheStream = Observable
-			.interval(100)				// run every 100ms
-			.map(()=>this.vendorsCache)	// poll vendorsCache
-			.distinctUntilChanged()		// only react when it is change
-		;
-		// trigger this.vendorsCache() once when this.vendorsCache goes from false to true
-		this.vendorsCacheSub = this.vendorsCacheStream.subscribe(
-			() => this.logger.log(`Updated vendorsCache`)
-		);
-
-
-
-		// init vendorKeysStream
-		this.vendorKeysStream = Observable
-			.interval(100)					// run every 100ms
-			.map(()=>this.vendorKeys)		// poll vendorKeys
-			.distinctUntilChanged()			// only react when it is change
-		;
-		// trigger this.vendorKeys() once when this.vendorKeys goes from false to true
-		this.vendorKeysSub = this.vendorKeysStream.subscribe(
-			() => this.logger.log(`Updated vendorKeys`)
-		);
-
-
-
-		// init selectedVendorsStream
-		this.selectedVendorsStream = Observable
-			.interval(100)					// run every 100ms
-			.map(()=>this.selectedVendors)	// poll selectedVendors
-			.distinctUntilChanged()			// only react when it is change
-		;
-		// trigger this.selectedVendors() once when this.selectedVendors goes from false to true
-		this.selectedVendorsSub = this.selectedVendorsStream.subscribe(
-			() => this.logger.log(`Updated selectedVendors`)
-		);
-
-
-
-		// init fetchMoreStream
-		this.fetchMoreStream = Observable
-			.interval(100)					// run every 100ms
-			.map(()=>this.hasNextPage)		// poll hasNextPage
-			.distinctUntilChanged()			// only react when it is change
-			.filter(flag=>!!flag)			// only emit this.hasNextPage goes from false to true
-		;
-		// trigger this.fetchMore() once when this.hasNextPage goes from false to true
-		this.fetchMoreSub = this.fetchMoreStream.subscribe(
-			() => this.fetchMore()
-		);
-
-
-
-		// mark GraphQLService as initialized
-		this.completedInit = true;
 
 
 		// Debug
@@ -241,41 +175,58 @@ export class GraphQLService implements OnInit, OnDestroy {
 	}
 
 
+
 	// init GraphQLService
 	// ToDo:
 	// x impl this
 	// x test this manually
 	// - impl unit tests
-	destroy(): void {
+	private init(): void {
 
-		// cancel subscriptions
-		this.vendorsCacheSub.unsubscribe();
-		this.vendorKeysSub.unsubscribe();
-		this.selectedVendorsSub.unsubscribe();
-		this.collectionSub.unsubscribe();
-		this.fetchMoreSub.unsubscribe();
+		// init fetchMoreTrigger
+		this.fetchMoreTrigger = Observable
+			.interval(100)					// poll every 100ms
+			.map(()=>this.fetchMoreFlag)		// watch this.fetchMoreFlag
+			.distinctUntilChanged()			// only react when it is change
+			.filter(flag=>!!flag)			// only emit when this.fetchMoreFlag goes from false to true
+		;
 
-		// mark GraphQLService as destroyed
-		this.completedDestroy = true;
+
+		// trigger this.fetchMore() once when this.fetchMoreFlag goes from false to true
+		this.fetchMoreSub = this.fetchMoreTrigger.subscribe(
+			() => this.fetchMore()
+		);
+
+
+		// mark GraphQLService as initialized
+		this.serviceInitiated = true;
 	}
 
 
 
-	// select new vendor set by key
-	// TODO:
-	// - impl this
-	// - test this manually
+	// init GraphQLService
+	// ToDo:
+	// x impl this
+	// x test this manually
 	// - impl unit tests
-	setSelectedVendor(key: string): void {
-		this.selectedVendors = this.vendorsCache[key];
+	private destroy(): void {
+
+		// cancel subscriptions
+		this.dataSub.unsubscribe();
+		this.fetchMoreSub.unsubscribe();
+
+		// mark GraphQLService as destroyed
+		this.serviceDestroyed = true;
 	}
 
 
 
 	// fetch additional results from GraphQL api if available
 	// TODO:
-	// x impl this
-	// x test this manually
+	// - impl this
+	//		+ how do I pass a custom resolver from client?  
+	//		+ it should be an updateQuery
+	// - test this manually
 	// - impl unit tests
 	private fetchMore(): void {
 
@@ -284,14 +235,14 @@ export class GraphQLService implements OnInit, OnDestroy {
 
 
 		// halt if there is no more data to be fetched
-		if (!this.hasNextPage){
+		if (!this.fetchMoreFlag){
 			this.logger.warn('There is no more data to be fetched');
 			return;
 		}
 
 
 		// fetch more data
-		this.collectionStream.fetchMore(
+		this.dataStream.fetchMore(
 			{
 				variables: {
 					after: this.cursor
@@ -328,59 +279,14 @@ export class GraphQLService implements OnInit, OnDestroy {
 		this.logger.log('Completed GraphQLService.fetchMore()');
 	}
 
-
-
-	// turn vendor array into vendor hash and add to cache
-	// TODO:
-	// - impl this
-	//		+ update this.vendorsCache in this method instead of returning a newVendorCache
-	//		+ use RxJS stream in order to make this a Funtional Reactive method
-	// - test this manually
-	// - impl unit tests
-	private processNewVendors(newVendors: any[]): Object {
-
-		// Debug
-		this.logger.log('Starting GraphQLService.processNewVendors()');
-
-		let newVendorCache = null;
-		if (newVendors) {
-			newVendorCache = newVendors
-						.reduce(
-							(C:any,v:any) => {
-								
-								let handle = v.node.handle[0];
-
-								// test if vendor key is alphabetic
-								let key;
-								startsWithAlpha(handle)
-								? key = handle[0]
-								: key = 123
-								
-								// add vendor to cache
-								!!C[key]
-								? C[key].add(v)
-								: C[key] = (new Set).add(v)	
-								
-								
-								return C;
-							},
-							this.vendorsCache
-						)
-			;
-		}
-
-
-		// Debug
-		this.logger.log(`There are now ${newVendors.length} vendors in cache`);
-		this.logger.log('Completed GraphQLService.processNewVendors()');
-
-		return newVendorCache;
-	}
-
-
-
 }
 
 
+
+
+
+
+
+	
 
 
