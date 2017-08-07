@@ -47,7 +47,7 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		private service: 	VendorService,
 		private storage:	StorageService
 	) {
-		// fetch initial state from local storage if exists
+		// fetch last cache from local storage if exists
 		this.vendorKeys 	 = this.storage.get('vendorKeys');
 		this.selectedVendors = this.storage.get('selectedVendors');
 	}; 
