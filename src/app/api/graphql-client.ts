@@ -84,7 +84,7 @@ const client = new ApolloClient({
 
 
 // export function that serves client
-export function provideClient(): ApolloClient {
+export function getApolloClient(): ApolloClient {
 	return client;
 }
 

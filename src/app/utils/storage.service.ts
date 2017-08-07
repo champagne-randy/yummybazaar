@@ -16,42 +16,65 @@ import {
 export class StorageService {
 
 
-	localData: any;
-	
+	localCache: any;
 
-	save(name: string, data: any): void{
+
+	constructor(){
 
 		// init data cache if exists
-		this.localData  = localStorage.getItem('yummybazaar.com');
-		if(this.localData){
-			this.localData = JSON.parse(this.localData);
+		this.localCache  = localStorage.getItem('yummybazaar.com');
+		if(this.localCache){
+			this.localCache = JSON.parse(this.localCache);
 		}else{
-			this.localData = {};
+			this.localCache = {};
 		}
 
+	}
+	
+
+	save(key: string, data: any): void {
+
 		// add new item to cache
-		this.localData[name] = data;
+		this.localCache[key] = data;
 
 		// store cache
-		localStorage.setItem('yummybazaar.com',JSON.stringify(this.localData))
+		localStorage.setItem('yummybazaar.com',JSON.stringify(this.localCache))
 	}
 
 
-	get(name: string = null): any{
+	get(key: string): any {
+
+		let savedObject = undefined;
 
 		// retrieve data cache if exists
-		let data = JSON.parse(localStorage.getItem('yummybazaar.com'));
-		if(!data){
-			return undefined;
-		}
-
-		// retrieve item if exists
-		if(name){
-			if(data[name]){
-				return data[name];
+		let savedCache = JSON.parse(localStorage.getItem('yummybazaar.com'));
+		if(savedCache){
+			// retrieve item if exists
+			if(savedCache[key]){
+				return savedCache[key];
 			}else{
 				return {};
 			}
 		}
 	}
+
+
+	saved(key: string): boolean {
+
+		let status = false;
+
+		// return bool indicating if this object was saved before
+		if (this.localCache && !!this.localCache[key]) 
+			status = true;
+
+		return status;
+	}
+
+
 }
+
+
+
+
+
+

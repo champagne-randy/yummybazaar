@@ -1,6 +1,6 @@
 import { 
 	Injectable,
-	OnInit,
+	AfterViewInit,
 	OnDestroy
 }					 		from '@angular/core';
 import {
@@ -14,7 +14,8 @@ import {
 	ApolloQueryObservable
 } 							from 'apollo-angular';
 import {
-	CollectionsQuery
+	CollectionsQuery,
+	InitializationQuery
 }  							from '../api';
 import { 
 	deepFindObjectProp,
@@ -42,10 +43,10 @@ import {
 // - impl logic to update client side cache whenever catalog is updated on backend
 // - see: http://dev.apollodata.com/angular2/receiving-updates.html
 @Injectable()
-export class GraphQLService implements OnInit, OnDestroy {
+export class GraphQLService implements AfterViewInit, OnDestroy {
 
-	serviceInitiated:			boolean;
-	serviceDestroyed:			boolean;
+	initiated:					boolean;
+	destroyed:					boolean;
 	private loading: 	  		boolean;
 	loadingStream:				Observable<boolean>;
 	dataStream: 				ApolloQueryObservable<any>;
@@ -54,6 +55,8 @@ export class GraphQLService implements OnInit, OnDestroy {
 	private fetchMoreSub: 		Subscription;
 	private fetchMoreFlag: 	 	boolean;
 	private cursor: 		 	string;
+	private clientDataStream: 	Observable<any>;
+	private clientDataSub:		Subscription;
 	
 
 	
@@ -63,19 +66,22 @@ export class GraphQLService implements OnInit, OnDestroy {
 	) { 
 
 		// initial states for GraphQLService
-		this.serviceInitiated 	= false;
-		this.serviceDestroyed 	= false;
+		this.initiated 			= false;
+		this.destroyed 			= false;
 		this.loading 	 		= true;
 		this.fetchMoreFlag 		= false;
 		this.cursor 	 		= null;
+
+		// run initialization logic
+		this.init();
 	};
 
 
 
-	ngOnInit(): void {
+	ngAfterViewInit(): void {
 
 		// Debug
-		this.logger.log('Starting GraphQLService.ngOnInit()');
+		this.logger.log('Starting GraphQLService.ngAfterViewInit()');
 		
 
 		// run initialization logic
@@ -83,7 +89,7 @@ export class GraphQLService implements OnInit, OnDestroy {
 
 
 		// Debug
-		this.logger.log('Completed GraphQLService.ngOnInit()');
+		this.logger.log('Completed GraphQLService.ngAfterViewInit()');
 	}
 
 
@@ -101,27 +107,88 @@ export class GraphQLService implements OnInit, OnDestroy {
 
 
 
+	// init GraphQLService
+	// ToDo:
+	// - impl this
+	// - test this manually
+	// - impl unit tests
+	init(): void {
+
+
+		// Debug
+		this.logger.log('Starting GraphQLService.init()');
+
+
+		// listen for the moment this.client is initialized
+		this.clientDataStream = Observable
+			.interval(100)						// poll every 100ms
+			.map(()=>this.client)				// check this.client
+			.distinctUntilChanged()				// only react when it is change
+		;
+
+
+		// log that this.client is initialized & ready for subscriptions
+		this.clientDataSub = this.clientDataStream.subscribe(
+			() => {
+				this.logger.log('Apollo client is initialized & ready for subscriptions');
+			}
+		);
+
+
+
+		// schedule fetchMoreTrigger
+		this.fetchMoreTrigger = Observable
+			.interval(100)						// poll every 100ms
+			.map(()=>this.fetchMoreFlag)		// watch this.fetchMoreFlag
+			.distinctUntilChanged()				// only react when it is change
+			.filter(flag=>!!flag)				// only emit when this.fetchMoreFlag goes from false to true
+		;
+
+
+		// trigger this.fetchMore() once when this.fetchMoreFlag goes from false to true
+		this.fetchMoreSub = this.fetchMoreTrigger.subscribe(
+			() => this.fetchMore()
+		);
+
+
+		// mark GraphQLService as initialized
+		this.initiated = true;
+
+
+		// Debug
+		this.logger.log('Completed GraphQLService.init()');
+	}
+
+
+
 	// run new query against GraphQL API
 	// ToDo:
-	// x impl this
+	// - impl this
 	// - test this manually
 	// - impl unit tests
 	fetch(
 			query: any, 
 			offset: string,
 			limit: number,
-			path2FetchMoreFlag: string,		// data.shop.collections.pageInfo.hasNextPage;
-			path2Object: string				// data.shop.collections.edges.slice(-1)[0].cursor;
+			path2FetchMoreFlag: string,
+			path2Object: string
 	): void {
 
 
-		// don't fetch unless GraphQLService is initialized 
-		if(!this.serviceInitiated)
+		// fetch only if GraphQLService is initialized 
+		if(!this.initiated)
 			return;
 
 
 		// Debug
-		this.logger.log('Starting GraphQLService.init()');
+		this.logger.log('Starting GraphQLService.fetch()');
+
+
+
+		// TODO
+		// - impl a stream that watches this.dataStream.complete
+		// - it should update this.loading = !this.dataStream.complete
+
 
 
 		// initialize collection stream
@@ -138,85 +205,47 @@ export class GraphQLService implements OnInit, OnDestroy {
 		;
 
 
-		// TODO
-		// - impl a stream that watches this.dataStream.complete
-		// - it should update this.loading = !this.dataStream.complete
-
-
 
 		// subscribe this.fetchMoreFlag & this.cursor to dataStream
-		this.dataSub = this.dataStream.subscribe(
+		this.clientDataSub = this.clientDataStream.subscribe(
 			({data, loading}) => {
 
 				// Debug
-				this.logger.log('Starting to consume payload from API');
+				this.logger.log('Starting to consume API payload in GraphQlService.fetch()');
 
 
-				// - set fetchMoreFlag 
-				this.fetchMoreFlag = deepFindObjectProp(data, path2FetchMoreFlag);
+				// update fetchMoreFlag 
+				try {
+					this.fetchMoreFlag = deepFindObjectProp(data, path2FetchMoreFlag);
+				}
+				catch (e){
+					this.logger.warn('failed to update fetchMoreFlag');
+					this.logger.warn(e.message);
+				}
 
 
-				// - set cursor
-				this.cursor = deepFindObjectProp(data, path2Object).slice(-1)[0].cursor;
+				// update cursor
+				try {
+					this.cursor = deepFindObjectProp(data, path2Object).slice(-1)[0].cursor;
+				}
+				catch (e){
+					this.logger.warn('failed to update cursor');
+					this.logger.warn(e.message);
+				}
 
 
 				// Debug
-				this.logger.log('Finished consuming payload from API');
+				this.logger.log('Finished consuming API payload in GraphQlService.fetch()');
 			},
 			(err) => { 
 				this.logger.error('Fetch error: ' + err.message); 
 			}
-		);	
-
-
-		// Debug
-		this.logger.log('Completed GraphQLService.init()');
-
-	}
-
-
-
-	// init GraphQLService
-	// ToDo:
-	// x impl this
-	// x test this manually
-	// - impl unit tests
-	init(): void {
-
-		// init fetchMoreTrigger
-		this.fetchMoreTrigger = Observable
-			.interval(100)					// poll every 100ms
-			.map(()=>this.fetchMoreFlag)		// watch this.fetchMoreFlag
-			.distinctUntilChanged()			// only react when it is change
-			.filter(flag=>!!flag)			// only emit when this.fetchMoreFlag goes from false to true
-		;
-
-
-		// trigger this.fetchMore() once when this.fetchMoreFlag goes from false to true
-		this.fetchMoreSub = this.fetchMoreTrigger.subscribe(
-			() => this.fetchMore()
 		);
 
 
-		// mark GraphQLService as initialized
-		this.serviceInitiated = true;
-	}
+		// Debug
+		this.logger.log('Completed GraphQLService.fetch()');
 
-
-
-	// init GraphQLService
-	// ToDo:
-	// x impl this
-	// x test this manually
-	// - impl unit tests
-	destroy(): void {
-
-		// cancel subscriptions
-		this.dataSub.unsubscribe();
-		this.fetchMoreSub.unsubscribe();
-
-		// mark GraphQLService as destroyed
-		this.serviceDestroyed = true;
 	}
 
 
@@ -254,29 +283,46 @@ export class GraphQLService implements OnInit, OnDestroy {
 
 					// register new results with Apollo client
 					return Object.assign(
-								{}, 
-								prev, 
-								{
-									shop: {
-										collections: {
-											edges: [
-												...prev.shop.collections.edges, 
-												...fetchMoreResult.shop.collections.edges,
-											],
-											pageInfo: fetchMoreResult.shop.collections.pageInfo,
-											__typename: "CollectionConnection"
-										},
-									},
-									__typename: "Shop"
-								}
-							)
-					;
+						{}, 
+						prev, 
+						{
+							shop: {
+								collections: {
+									edges: [
+										...prev.shop.collections.edges, 
+										...fetchMoreResult.shop.collections.edges,
+									],
+									pageInfo: fetchMoreResult.shop.collections.pageInfo,
+									__typename: "CollectionConnection"
+								},
+							},
+							__typename: "Shop"
+						}
+					);
 				},
 			}
 		);
 
 		// Debug
 		this.logger.log('Completed GraphQLService.fetchMore()');
+	}
+
+
+
+	// init GraphQLService
+	// ToDo:
+	// x impl this
+	// x test this manually
+	// - impl unit tests
+	destroy(): void {
+
+		// cancel subscriptions
+		this.dataSub.unsubscribe();
+		this.fetchMoreSub.unsubscribe();
+		this.clientDataSub.unsubscribe();
+
+		// mark GraphQLService as destroyed
+		this.destroyed = true;
 	}
 
 }

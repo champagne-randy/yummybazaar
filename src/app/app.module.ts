@@ -21,6 +21,7 @@ import {
 } 							from './app.component';
 import {
 	VendorIndexComponent,
+	DumbComponent
 }							from './vendor'
 import {
 	ProductIndexComponent
@@ -29,15 +30,12 @@ import {
 // Project Services
 import {
 	GraphQLService,
-	provideClient
+	getApolloClient
 }							from './api';
 import { 
 	LoggerService,
 	StorageService 
 }							from './utils';
-import {
-	VendorService
-}							from './vendor/vendor.service';
 
 
 
@@ -46,17 +44,17 @@ import {
 
 @NgModule({
 	imports:      [ 
-		ApolloModule.forRoot(provideClient),
+		ApolloModule.withClient(getApolloClient),
 		BrowserModule,
 	],
 	providers:    [ 
 		GraphQLService,
 		LoggerService,
 		StorageService,
-		VendorService,
 	],
 	declarations: [ 
 		AppComponent,
+		DumbComponent,
 		ProductIndexComponent,
 		VendorIndexComponent,
 	],

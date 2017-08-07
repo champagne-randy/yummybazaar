@@ -1,0 +1,42 @@
+<div>
+	<!-- header -->
+		<h1>
+			Vendor Index
+		</h1>
+	<!-- end header -->
+
+
+	<!-- selection widget -->
+		<ul>
+			<button
+				*ngFor="let vendorKey of vendorKeys"
+				(click)="selectVendor(newKey)"
+				[attr.data-key]=vendorKey
+			>
+				<li>
+					{{ vendorKey }}
+				</li>
+			</button>
+		</ul>
+	<!-- selection widget -->
+
+
+
+	<!-- index for curVendorKey -->
+		<ul>
+			<li 
+				*ngFor="let vendor of selectedVendors"
+			>
+				Vendor: {{ vendor.node.handle }}
+			</li>
+		</ul>
+	<!-- end index for curVendorKey -->
+</div>
+
+
+
+
+
+
+
+
