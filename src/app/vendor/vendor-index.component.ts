@@ -34,9 +34,9 @@ import {
 export class VendorIndexComponent implements OnInit, OnDestroy {
 	
 
-	vendorKeys:					Observable<string[]>;
+	vendorKeys:					any;
 	private vendorKeysSub:		Subscription;
-	selectedVendors:			Observable<Set<any>>;
+	selectedVendors:			any;
 	private selectedVendorsSub:	Subscription;
 	
 	
@@ -47,10 +47,7 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		private service: 	VendorService,
 		private storage:	StorageService
 	) {
-		// TODO
-		// - these should be streams
-		// - refac this to push data from storage onto the stream on startup
-		// fetch properties from local storage if exists
+		// fetch initial state from local storage if exists
 		this.vendorKeys 	 = this.storage.get('vendorKeys');
 		this.selectedVendors = this.storage.get('selectedVendors');
 	}; 
@@ -59,28 +56,63 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 
 	ngOnInit(): void {
 
+
 		// Debug
 		this.logger.log('Starting VendorIndexComponent.ngOnInit()');
 
-		// init VendorService if necessary
+
+
+		// wait for VendorService to be initiated if necessary
 		if (!this.service.serviceInitiated)
 			this.service.init();
 
-		// subscribe to vendorKeysStream
+
+
+		// subscribe to vendorKeysStream from this.service
+		// TODO
+		// x impl this
+		// - test this manually
 		this.vendorKeysSub = this.service.vendorKeysStream.subscribe(
-			(data) => {
-				this.vendorKeys = data;
-				this.storage.save('vendorKeys',this.vendorKeys);
+			(vendorKeys) => {
+
+				// add new data to cache
+				this.vendorKeys = vendorKeys;
+
+				// add/update cache in local storage
+				this.storage.save(
+					'vendorKeys',
+					this.vendorKeys
+				);
+
+				// Debug
+				this.logger.log('Updated vendorKeys');
 			}
 		);
 
-		// subscribe to selectedVendorsStream
+
+
+		// subscribe to selectedVendorsStream from this.service
+		// TODO
+		// x impl this
+		// - test this manually
 		this.selectedVendorsSub = this.service.selectedVendorsStream.subscribe(
-			(data) => {
-				this.selectedVendors = data;
-				this.storage.save('selectedVendors',this.selectedVendors);
+			(selectedVendors) => {
+
+				// add new data to cache
+				this.selectedVendors = selectedVendors;
+
+				// add/update cache in local storage
+				this.storage.save(
+					'selectedVendors',
+					this.selectedVendors
+				);
+
+				// Debug
+				this.logger.log('Updated selectedVendors');
 			}
 		);
+
+
 
 		// Debug
 		this.logger.log('Completed VendorIndexComponent.ngOnInit()');
@@ -93,13 +125,16 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		// Debug
 		this.logger.log('Starting VendorIndexComponent.ngOnDestroy()');
 
-		// cancel subscriptions
+
+		// cancel local subscriptions
 		this.vendorKeysSub.unsubscribe();
 		this.selectedVendorsSub.unsubscribe();
 
-		// destroy VendorService if necessary
+
+		// wait for VendorService to be destroyed if necessary
 		if(!this.service.serviceDestroyed)
 			this.service.destroy();
+
 
 		// Debug
 		this.logger.log('Completed VendorIndexComponent.ngOnDestroy()');
