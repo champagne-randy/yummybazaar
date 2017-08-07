@@ -47,6 +47,9 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		private service: 	VendorService,
 		private storage:	StorageService
 	) {
+		// TODO
+		// - these should be streams
+		// - refac this to push data from storage onto the stream on startup
 		// fetch properties from local storage if exists
 		this.vendorKeys 	 = this.storage.get('vendorKeys');
 		this.selectedVendors = this.storage.get('selectedVendors');
@@ -59,8 +62,8 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		// Debug
 		this.logger.log('Starting VendorIndexComponent.ngOnInit()');
 
-		// init VendorService provider
-		if (!this.service.completedInit)
+		// init VendorService if necessary
+		if (!this.service.serviceInitiated)
 			this.service.init();
 
 		// subscribe to vendorKeysStream
@@ -94,8 +97,8 @@ export class VendorIndexComponent implements OnInit, OnDestroy {
 		this.vendorKeysSub.unsubscribe();
 		this.selectedVendorsSub.unsubscribe();
 
-		// destroy service if necessary
-		if(!this.service.completedDestroy)
+		// destroy VendorService if necessary
+		if(!this.service.serviceDestroyed)
 			this.service.destroy();
 
 		// Debug

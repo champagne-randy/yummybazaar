@@ -15,7 +15,7 @@ import {
 } 							from 'apollo-angular';
 import {
 	CollectionsQuery
-}  							from '../api/queries';
+}  							from '../api';
 import { 
 	deepFindObjectProp,
 	LoggerService,
@@ -44,8 +44,8 @@ import {
 @Injectable()
 export class GraphQLService implements OnInit, OnDestroy {
 
-	private serviceInitiated:	boolean;
-	private serviceDestroyed:	boolean;
+	serviceInitiated:			boolean;
+	serviceDestroyed:			boolean;
 	private loading: 	  		boolean;
 	loadingStream:				Observable<boolean>;
 	dataStream: 				ApolloQueryObservable<any>;
@@ -181,7 +181,7 @@ export class GraphQLService implements OnInit, OnDestroy {
 	// x impl this
 	// x test this manually
 	// - impl unit tests
-	private init(): void {
+	init(): void {
 
 		// init fetchMoreTrigger
 		this.fetchMoreTrigger = Observable
@@ -209,7 +209,7 @@ export class GraphQLService implements OnInit, OnDestroy {
 	// x impl this
 	// x test this manually
 	// - impl unit tests
-	private destroy(): void {
+	destroy(): void {
 
 		// cancel subscriptions
 		this.dataSub.unsubscribe();

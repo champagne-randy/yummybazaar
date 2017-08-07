@@ -9,13 +9,10 @@ import {
 import {
 	Subscription
 }							from 'rxjs/Subscription';
-import { 
-	Apollo,
-	ApolloQueryObservable
-} 							from 'apollo-angular';
 import {
-	CollectionsQuery
-}  							from '../api/queries';
+	CollectionsQuery,
+	GraphQLService
+}  							from '../api';
 import { 
 	LoggerService,
 	startsWithAlpha	
@@ -43,38 +40,39 @@ import {
 @Injectable()
 export class VendorService implements OnInit, OnDestroy {
 
-	completedInit:				boolean;
-	completedDestroy:			boolean;
+	serviceInitiated:			boolean;
+	serviceDestroyed:			boolean;
 	private loading: 	  		boolean;
+	loadingStream:				Observable<boolean>;
+	private loadingSub:			Subscription;
 	private vendorsCache: 	  	Object;
-	vendorsCacheStream: 		Observable<any>;
-	vendorsCacheSub: 			Subscription;
+	vendorsStream: 				Observable<any>;
+	private vendorsCacheSub: 	Subscription;
 	private vendorKeys:	  		string[];
 	vendorKeysStream: 			Observable<any>;
-	vendorKeysSub: 				Subscription;
+	private vendorKeysSub: 		Subscription;
 	private selectedVendors:	Set<any>;
 	selectedVendorsStream: 		Observable<any>;
-	selectedVendorsSub: 		Subscription;
-	private collectionStream: 	ApolloQueryObservable<any>;
-	private collectionSub:		Subscription;
-	private fetchMoreStream: 	Observable<boolean>;
-	private fetchMoreSub: 		Subscription;
-	private hasNextPage: 	 	boolean;
-	private cursor: 		 	string;
+	private selectedVendorsSub: Subscription;
+	private serviceDataSub:		Subscription;
+	private serviceloadingSub:	Subscription;
+	private path2FetchMoreFlag: string;
+	private path2Object:		string;
+	
 	
 
 	
 	constructor(
-		private client: Apollo,
+		private service: GraphQLService,
 		private logger: LoggerService
 	) { 
-		this.completedInit 		= false;
-		this.completedDestroy 	= false;
 		this.loading 	 		= true;
+		this.serviceInitiated	= false;
+		this.serviceDestroyed 	= false;
 		this.vendorsCache 		= {};
-		this.hasNextPage 		= false;
-		this.cursor 	 		= null;
-	};
+		this.path2FetchMoreFlag = 'data.shop.collections.pageInfo.hasNextPage';
+		this.path2Object 		= 'data.shop.collections.edges';
+	}
 
 
 
@@ -112,7 +110,7 @@ export class VendorService implements OnInit, OnDestroy {
 	init(): void {
 
 		// only initialized VendorService once
-		if(this.completedInit)
+		if(this.serviceInitiated)
 			return;
 
 
@@ -120,21 +118,67 @@ export class VendorService implements OnInit, OnDestroy {
 		this.logger.log('Starting VendorService.init()');
 
 
-		// initialize collection stream
-		this.collectionStream = this.client
-			.watchQuery<any>(
-				{
-					query: CollectionsQuery,
-					variables: {
-						after: this.cursor
-					}
-				}
-			)
+
+		// init GraphQLService if necessary
+		if (!this.service.serviceInitiated)
+			this.service.init();
+
+
+
+		// init loadingStream
+		this.loadingStream = Observable
+			.interval(100)				// run every 100ms
+			.map(()=>this.loading)		// poll this.loading
+			.distinctUntilChanged()		// only react when it is change
 		;
+		// log update to this.loading
+		this.loadingSub = this.loadingStream.subscribe(
+			() => this.logger.log(`Updated loading`)
+		);
 
 
-		// parse vendors from collection stream
-		this.collectionSub = this.collectionStream.subscribe(
+
+		// init vendorsStream
+		this.vendorsStream = Observable
+			.interval(100)				// run every 100ms
+			.map(()=>this.vendorsCache)	// poll this.vendorsCache
+			.distinctUntilChanged()		// only react when it is change
+		;
+		// log update to this.vendorsCache
+		this.vendorsCacheSub = this.vendorsStream.subscribe(
+			() => this.logger.log(`Updated vendorsCache`)
+		);
+
+
+
+		// init vendorKeysStream
+		this.vendorKeysStream = Observable
+			.interval(100)					// run every 100ms
+			.map(()=>this.vendorKeys)		// poll this.vendorKeys
+			.distinctUntilChanged()			// only react when it is change
+		;
+		// log update to this.vendorKeys
+		this.vendorKeysSub = this.vendorKeysStream.subscribe(
+			() => this.logger.log(`Updated vendorKeys`)
+		);
+
+
+
+		// init selectedVendorsStream
+		this.selectedVendorsStream = Observable
+			.interval(100)					// run every 100ms
+			.map(()=>this.selectedVendors)	// poll selectedVendors
+			.distinctUntilChanged()			// only react when it is change
+		;
+		// trigger this.selectedVendors() once when this.selectedVendors goes from false to true
+		this.selectedVendorsSub = this.selectedVendorsStream.subscribe(
+			() => this.logger.log(`Updated selectedVendors`)
+		);
+
+
+
+		// subscribe to this.service's dataStream
+		this.serviceDataSub = this.service.dataStream.subscribe(
 			({data, loading}) => {
 
 				// Debug
@@ -160,11 +204,6 @@ export class VendorService implements OnInit, OnDestroy {
 				}
 
 
-				// config pagination properties
-				this.hasNextPage = data.shop.collections.pageInfo.hasNextPage;
-				this.cursor = data.shop.collections.edges.slice(-1)[0].cursor;
-
-
 				// Debug
 				this.logger.log('Finished consuming collections payload');
 			},
@@ -175,61 +214,36 @@ export class VendorService implements OnInit, OnDestroy {
 
 
 
-		// init vendorsCacheStream
-		this.vendorsCacheStream = Observable
-			.interval(100)				// run every 100ms
-			.map(()=>this.vendorsCache)	// poll vendorsCache
-			.distinctUntilChanged()		// only react when it is change
-		;
-		// trigger this.vendorsCache() once when this.vendorsCache goes from false to true
-		this.vendorsCacheSub = this.vendorsCacheStream.subscribe(
-			() => this.logger.log(`Updated vendorsCache`)
+		// subscribe to this.service's loadingStream
+		this.serviceloadingSub = this.service.loadingStream.subscribe(
+			(loading) => {
+				this.loading = loading;
+			}
 		);
 
 
 
-		// init vendorKeysStream
-		this.vendorKeysStream = Observable
-			.interval(100)					// run every 100ms
-			.map(()=>this.vendorKeys)		// poll vendorKeys
-			.distinctUntilChanged()			// only react when it is change
-		;
-		// trigger this.vendorKeys() once when this.vendorKeys goes from false to true
-		this.vendorKeysSub = this.vendorKeysStream.subscribe(
-			() => this.logger.log(`Updated vendorKeys`)
-		);
-
-
-
-		// init selectedVendorsStream
-		this.selectedVendorsStream = Observable
-			.interval(100)					// run every 100ms
-			.map(()=>this.selectedVendors)	// poll selectedVendors
-			.distinctUntilChanged()			// only react when it is change
-		;
-		// trigger this.selectedVendors() once when this.selectedVendors goes from false to true
-		this.selectedVendorsSub = this.selectedVendorsStream.subscribe(
-			() => this.logger.log(`Updated selectedVendors`)
-		);
-
-
-
-		// init fetchMoreStream
-		this.fetchMoreStream = Observable
-			.interval(100)					// run every 100ms
-			.map(()=>this.hasNextPage)		// poll hasNextPage
-			.distinctUntilChanged()			// only react when it is change
-			.filter(flag=>!!flag)			// only emit this.hasNextPage goes from false to true
-		;
-		// trigger this.fetchMore() once when this.hasNextPage goes from false to true
-		this.fetchMoreSub = this.fetchMoreStream.subscribe(
-			() => this.fetchMore()
+		// pre-fetch logic
+		// TODO
+		// - impl this
+		//		query: any, 
+		//		offset: string,
+		//		limit: number,
+		//		path2FetchMoreFlag: string,
+		//		path2Object: string
+		this.service.fetch(
+			CollectionsQuery,
+			null,
+			250,
+			this.path2FetchMoreFlag,
+			this.path2Object
 		);
 
 
 
 		// mark VendorService as initialized
-		this.completedInit = true;
+		this.serviceInitiated = true;
+
 
 
 		// Debug
@@ -241,14 +255,18 @@ export class VendorService implements OnInit, OnDestroy {
 	destroy(): void {
 
 		// cancel subscriptions
-		this.vendorsCacheSub.unsubscribe();
+		this.loadingSub.unsubscribe();
 		this.vendorKeysSub.unsubscribe();
+		this.vendorsCacheSub.unsubscribe();
 		this.selectedVendorsSub.unsubscribe();
-		this.collectionSub.unsubscribe();
-		this.fetchMoreSub.unsubscribe();
+		this.serviceDataSub.unsubscribe();
 
-		// mark VendorService as destroyed
-		this.completedDestroy = true;
+		// destroy GraphQLService if necessary
+		if(!this.service.serviceDestroyed)
+			this.service.destroy();
+
+		// mark service as destroyed
+		this.serviceDestroyed = true;
 	}
 
 
@@ -259,63 +277,6 @@ export class VendorService implements OnInit, OnDestroy {
 	// - impl unit tests
 	setSelectedVendor(key: string): void {
 		this.selectedVendors = this.vendorsCache[key];
-	}
-
-
-
-	// TODO:
-	// x impl this
-	// x test this manually
-	// - impl unit tests
-	private fetchMore(): void {
-
-		// Debug
-		this.logger.log('Starting VendorService.fetchMore()');
-
-
-		// halt if there is no more data to be fetched
-		if (!this.hasNextPage){
-			this.logger.warn('There is no more data to be fetched');
-			return;
-		}
-
-
-		// fetch more data
-		this.collectionStream.fetchMore(
-			{
-				variables: {
-					after: this.cursor
-				},
-				updateQuery: (prev: any, { fetchMoreResult } :any) => 
-				{
-					// Debug
-					//this.logger.log(`res is: ${JSON.stringify(res,null,4)}`);
-
-					// register new results with Apollo client
-					return Object.assign(
-								{}, 
-								prev, 
-								{
-									shop: {
-										collections: {
-											edges: [
-												...prev.shop.collections.edges, 
-												...fetchMoreResult.shop.collections.edges,
-											],
-											pageInfo: fetchMoreResult.shop.collections.pageInfo,
-											__typename: "CollectionConnection"
-										},
-									},
-									__typename: "Shop"
-								}
-							)
-					;
-				},
-			}
-		);
-
-		// Debug
-		this.logger.log('Completed VendorService.fetchMore()');
 	}
 
 
