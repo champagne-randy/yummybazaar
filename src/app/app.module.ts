@@ -1,13 +1,13 @@
 // NG core modules
 import { 
+	NgModule
+} 							from '@angular/core';
+import { 
 	BrowserModule 
 } 							from '@angular/platform-browser';
-import { 
-	NgModule 
-} 							from '@angular/core';
 
 // 3rd party modules
-import { 
+import {
 	ApolloClient,
 	createNetworkInterface
 } 							from 'apollo-client';
@@ -15,63 +15,46 @@ import {
 	ApolloModule 
 } 							from 'apollo-angular';
 
-// Components
+// Project Components
 import { 
 	AppComponent 
 } 							from './app.component';
 import {
 	VendorIndexComponent,
+	DumbComponent
 }							from './vendor'
 import {
 	ProductIndexComponent
 } 							from './product';
 
-// Services
+// Project Services
+import {
+	GraphQLService,
+	getApolloClient
+}							from './api';
 import { 
 	LoggerService,
 	StorageService 
 }							from './utils';
-import {
-	VendorService
-}							from './vendor/vendor.service';
 
 
 
 
-
-
-
-
-// init & exportGraphQL client
-// TODO: import GraphQL client from a Service class 
-// - 
-const client = new ApolloClient({
-	networkInterface: createNetworkInterface({
-		uri: 'https://yummy-bazaar-dev.myshopify.com/api/graphql',
-		opts: {
-			headers: {
-				'X-Shopify-Storefront-Access-Token':'1003e582efbf560fb66ffb28ded011f8'
-			}
-		}
-	})
-});
-export function provideClient(): ApolloClient {
-	return client;
-}
 
 
 @NgModule({
 	imports:      [ 
-		ApolloModule.forRoot(provideClient),
+		ApolloModule.withClient(getApolloClient),
 		BrowserModule,
 	],
 	providers:    [ 
+		GraphQLService,
 		LoggerService,
 		StorageService,
-		VendorService,
 	],
 	declarations: [ 
 		AppComponent,
+		DumbComponent,
 		ProductIndexComponent,
 		VendorIndexComponent,
 	],
@@ -82,7 +65,7 @@ export function provideClient(): ApolloClient {
 		AppComponent,
 	]
 })
-export class AppModule { }
+export class AppModule {}
 
 
 

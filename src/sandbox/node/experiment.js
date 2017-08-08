@@ -1,21 +1,47 @@
 'use strict';
 
-// node core modules
-import * as path	from 'path';
+
+const Rx 		= require('rxjs');
 
 
-// load file paths
-import paths 			from '../../build/paths';
+// action to run when new data flows on stream
+const printMessage = (message) => console.log(message);
 
 
-// run test
 
-let ouput = 
-path.join(
-	paths.dist.root,
-	'**','*'
-)
+// create observable 
+const stream = Rx.Observable.create(
+	(observer) => {
+
+		// simulate async event that fires every 1 second
+		let value = 0;
+		const interval = setInterval(
+			() => {
+				observer.next(value);
+				value++;
+			}, 
+			1000
+		);
+
+		// return function with clean up logic
+		return () => clearInterval(interval);
+	}
+);
+
+// subscribe to observable
+const subscription = stream.subscribe(val => console.log(val));
 
 
-// print result to stdOut
-console.log(typeof ouput);
+// unsubscribe after 10 seconds
+setTimeout(
+	() => {
+		subscription.unsubscribe();
+	}, 
+	10000
+);
+
+
+
+
+
+

@@ -1,2 +1,3 @@
-export { ProductsQuery } from './ProductsQuery'
-export { CollectionsQuery }	from './CollectionsQuery'
+export * from './ProductsQuery'
+export * from './CollectionsQuery'
+export * from './InitializationQuery';

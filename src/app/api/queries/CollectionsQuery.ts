@@ -2,11 +2,14 @@ import gql   from 'graphql-tag';
 
 
 export const CollectionsQuery = gql`
-query Collections($after: String) {
+query Collections(
+	$offset: String
+	$limit: Int!
+) {
   shop {
     collections (
-      first: 250
-      after: $after
+      first: $limit
+      after: $offset
     ) {
       edges {
         node {
@@ -28,4 +31,6 @@ query Collections($after: String) {
     }
   }
 }
-`
+`;
+
+
