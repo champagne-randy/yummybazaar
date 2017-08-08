@@ -109,7 +109,7 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 
 	// init GraphQLService
 	// ToDo:
-	// - impl this
+	// x impl this
 	// - test this manually
 	// - impl unit tests
 	init(): void {
@@ -122,8 +122,9 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 		// listen for the moment this.client is initialized
 		this.clientDataStream = Observable
 			.interval(100)						// poll every 100ms
-			.map(()=>this.client)				// check this.client
+			.map(()=>this.clientDataStream.subscribe())		// check this.client
 			.distinctUntilChanged()				// only react when it is change
+			.take(1)							// only do this once
 		;
 
 
@@ -163,7 +164,7 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 
 	// run new query against GraphQL API
 	// ToDo:
-	// - impl this
+	// x impl this
 	// - test this manually
 	// - impl unit tests
 	fetch(
@@ -211,7 +212,7 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 			({data, loading}) => {
 
 				// Debug
-				this.logger.log('Starting to consume API payload in GraphQlService.fetch()');
+				this.logger.log('Starting to consume API payload in GraphQLService.fetch()');
 
 
 				// update fetchMoreFlag 
@@ -235,7 +236,7 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 
 
 				// Debug
-				this.logger.log('Finished consuming API payload in GraphQlService.fetch()');
+				this.logger.log('Finished consuming API payload in GraphQLService.fetch()');
 			},
 			(err) => { 
 				this.logger.error('Fetch error: ' + err.message); 
@@ -252,7 +253,8 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 
 	// fetch additional results from GraphQL api if available
 	// TODO:
-	// - impl this
+	// x impl this
+	// - next steps:
 	//		+ how do I pass a custom resolver from client?  
 	//		+ it should be an updateQuery
 	// - test this manually
@@ -309,7 +311,7 @@ export class GraphQLService implements AfterViewInit, OnDestroy {
 
 
 
-	// init GraphQLService
+	// destroy GraphQLService
 	// ToDo:
 	// x impl this
 	// x test this manually
